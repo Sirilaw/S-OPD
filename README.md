@@ -7,7 +7,7 @@
   <a target="_blank" href="#">Yutao He</a><sup>1</sup>,
   <a target="_blank" href="#">Shangdong Yang</a><sup>3</sup>,
   <a target="_blank" href="https://koncle.github.io">Jian Zhang</a><sup>1</sup><sup>*</sup>,
-  <a target="_blank" href="https://cs.nju.edu.cn/shiyh/">Yinghuan Shi</a><sup>1</sup><sup>*</sup>,
+  <a target="_blank" href="https://cs.nju.edu.cn/shiyh/">Yinghuan Shi</a><sup>1</sup><sup>*</sup>
   <br>
   <strong>
     <sup>1</sup>Nanjing University, <sup>2</sup>Fudan University, <sup>3</sup>Nanjing University of Posts and Telecommunications
@@ -22,7 +22,7 @@
 
 On-policy distillation (OPD) improves reasoning by providing token-level supervision from a teacher on a student's own trajectories. Existing methods primarily focus on enhancing this teacher-side guidance (e.g., by enriching teacher inputs and refining teacher feedback), yet we find that limited student perception is another critical bottleneck in multimodal OPD.  
 
-To address this, we propose S-OPD, a simple multimodal on-policy distillation framework that explicitly strengthens student perceptual learning through two objectives. Specifically, \textit{Teacher-calibrated Policy Contrast} separates student policies under original and masked images with teacher-based token-level gating, strengthening the student's reliance on visual evidence during reasoning. \textit{Policy Agreement} aligns student policies under original and noise-perturbed images, further improving perceptual robustness to visual noise. Notably, our method can be seamlessly plugged into existing OPD frameworks, requiring no additional data annotations, model parameters or inference operations.
+To address this, we propose S-OPD, a simple multimodal on-policy distillation framework that explicitly strengthens student perceptual learning through two objectives. Specifically, *Teacher-calibrated Policy Contrast* separates student policies under original and masked images with teacher-based token-level gating, strengthening the student's reliance on visual evidence during reasoning. *Policy Agreement* aligns student policies under original and noise-perturbed images, further improving perceptual robustness to visual noise. Notably, our method can be seamlessly plugged into existing OPD frameworks, requiring no additional data annotations, model parameters or inference operations.
 
 <p align="center">
     <img src="assets/teaser.png" width="100%">
