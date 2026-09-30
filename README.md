@@ -99,7 +99,7 @@ The paper is currently anonymous. Please use the temporary entry below and repla
 
 ## Acknowledgements
 
-This implementation is built on [verl](https://github.com/volcengine/verl), uses [vLLM](https://github.com/vllm-project/vllm) for rollout and teacher inference, and uses [VLMEvalKit](https://github.com/open-compass/VLMEvalKit) for evaluation.
+This implementation is built on [verl](https://github.com/volcengine/verl) and [ViCuR](https://github.com/tiankanghui/ViCuR), uses [vLLM](https://github.com/vllm-project/vllm) for rollout and teacher inference, and uses [VLMEvalKit](https://github.com/open-compass/VLMEvalKit) for evaluation.
 
 ## License
 
