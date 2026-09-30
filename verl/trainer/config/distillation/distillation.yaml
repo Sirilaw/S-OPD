@@ -1,0 +1,272 @@
+# Required when using verl.utils.omega_conf_to_dataclass to instantiate dataclass configs
+_target_: verl.workers.config.DistillationConfig
+
+# specify the default per-component configs
+defaults:
+
+  # <folder_name>@<field_name>.<field_name>: <yaml_file_name>
+
+  # load the default config, then apply the fields in the current yaml
+  # self config override anything above
+  - _self_
+
+# Whether to enable distillation.
+enabled: false
+
+# we launch num_workers teacher managers to parallelize the teacher logprob computation
+num_workers: 8
+
+# Optional dataset field for teacher-only prompt (q+c). Null means fallback to student prompt.
+teacher_prompt_key: null
+
+# Optional privileged image column for the teacher. Null preserves the
+# existing behavior where teacher and student see data.image_key.
+teacher_image_key: null
+
+# Asymmetric input ablation: during training, add Gaussian noise to the image
+# used by the student rollout and student forward while keeping the teacher on
+# the original clean image. Validation remains clean. The standard deviation
+# is measured in RGB pixel space normalized to [0, 1].
+student_noisy_teacher_clean_enabled: false
+student_noisy_teacher_clean_std: 0.05
+
+# distillation loss config
+distillation_loss:
+
+  # # Required when using verl.utils.omega_conf_to_dataclass to instantiate dataclass configs
+  _target_: verl.workers.config.DistillationLossConfig
+
+
+  # Loss function mode for distillation
+  loss_mode: k3
+
+  # If distillation loss requires top-k logits, this is the value of k
+  topk: 32
+
+  # Whether to include task rewards alongside distillation loss.
+  use_task_rewards: true
+
+
+  # The coef of the distillation loss when use_task_rewards is true
+  distillation_loss_coef: 1.0
+
+  # Optional max clamp value for distillation loss. If null, no clamping is applied.
+  loss_max_clamp: null
+
+  # Optional min clamp value for log probabilities for stability, e.g., log q - log p where p or q are very close to zero.
+  log_prob_min_clamp: null
+
+  # Whether to incorporate distillation loss as a reward.
+  use_policy_gradient: false
+
+  # Name of the policy loss to use when use_policy_gradient is true.
+  policy_loss_mode: "vanilla"
+
+  # PPO clipping ratio for policy loss.
+  clip_ratio: 0.2
+
+  # Lower bound for PPO clipping ratio.
+  clip_ratio_low: 0.2 
+
+  # Upper bound for PPO clipping ratio.
+  clip_ratio_high: 0.2
+
+  # SimpleOPD-style OPD masking for the model EOS token. For Qwen models this
+  # is <|im_end|>. Only the OPD contribution is zeroed; task-reward PPO and
+  # student-reference KL continue to use the original response mask.
+  mask_termination_token: false
+
+  # Optional trajectory-position ablation for the main OPD loss only:
+  #   raw_weight(r) = 1 + alpha * exp(-r / decay),  r in [0, 1].
+  # Each response is normalized to mean weight 1 and bounded by min/max, so
+  # enabling this redistributes OPD credit from later to earlier tokens without
+  # changing the per-response coefficient scale. It does not weight PAPO,
+  # task-reward PPO, student-reference KL, or other additive objectives.
+  opd_position_weighting_enabled: false
+  opd_position_weight_alpha: 0.5
+  opd_position_weight_decay: 0.25
+  opd_position_weight_min: 0.5
+  opd_position_weight_max: 1.5
+
+  # VPPO-style Token Gradient Filtering for the main OPD objective. The
+  # student visual-dependency score is the sampled-token low-variance KL
+  # between original-image and randomly-masked-image policies. Exactly
+  # ceil(valid_tokens * top_fraction) tokens are retained per response.
+  student_visual_dependency_filter_enabled: false
+  student_visual_dependency_top_fraction: 0.4
+  student_visual_dependency_mask_ratio: 0.5
+  student_visual_dependency_patch_size: 14
+
+  # Optional teacher-only counterfactual visual grounding. Disabled by default,
+  # so existing distillation runs keep the same requests, tensors, and loss.
+  # When enabled, the teacher scores the same response with a gray blank image
+  # and upweights tokens whose probability increases with the real image:
+  #   weight = 1 + scale * relu(lp_real - lp_blank - threshold)
+  visual_grounding_enabled: false
+  visual_grounding_negative_strategy: blank
+  visual_grounding_blank_value: 127
+  visual_grounding_weight_scale: 1.0
+  visual_grounding_weight_threshold: 0.0
+  visual_grounding_max_weight: 5.0
+
+  # Token-level-only VA-OPD (arXiv:2605.21924). The degraded image is used
+  # only to rank tokens by teacher visual advantage; the OPD teacher target
+  # still comes from the original image. Disabled by default. The paper's
+  # rollout-level weighting is intentionally not enabled by this option. It
+  # can be combined with PAPO; VA token ranking and PAPO gating then use
+  # separate pixelated and masked teacher views, respectively.
+  token_level_va_enabled: false
+  token_level_va_negative_strategy: pixelate
+  token_level_va_pixelation_ratio: 0.1
+  token_level_va_high_fraction: 0.2
+  token_level_va_high_weight: 0.5
+
+  # Visual-Grounding Distillation (VGD). The teacher scores the sampled token
+  # under the original and a destroyed image, then shifts its OPD target by:
+  #   alpha * clamp(lp_original - lp_negative, -gap_clip, gap_clip)
+  # This independent method requires loss_mode=k1 and use_policy_gradient=true.
+  vgd_enabled: false
+  vgd_alpha: 1.0
+  vgd_gap_clip: 1.0
+  # When true, shift by clamp(max(lp_original - lp_negative, 0), 0, gap_clip).
+  vgd_positive_only: false
+  vgd_negative_strategy: patch_shuffle
+  # null derives image_processor.patch_size * image_processor.merge_size.
+  vgd_patch_shuffle_block_size: null
+  vgd_random_mask_ratio: 0.6
+  vgd_random_mask_patch_size: 14
+
+  # Generic top-k generalized JSD on teacher support plus an optional exact
+  # tail-mass bucket.
+  jsd_beta: 0.5
+  jsd_add_tail: true
+  # FP32 logsumexp reduction chunk size along the student vocabulary.
+  jsd_vocab_chunk_size: 4096
+
+  # Independent sampled-token residual matching objective. The degraded image
+  # follows PAPO: independent 14x14 patches are blackened with probability 0.6.
+  # Every sampled response token receives uniform weight by default. The
+  # direction-aware option keeps only tokens where the original image raises
+  # the teacher log-probability relative to the masked image.
+  counterfactual_residual_enabled: false
+  counterfactual_residual_negative_strategy: random_mask
+  counterfactual_residual_mask_ratio: 0.6
+  counterfactual_residual_patch_size: 14
+  counterfactual_residual_coef: 0.1
+  counterfactual_residual_beta: 0.1
+  counterfactual_residual_direction_aware: false
+
+  # When both PAPO and residual matching are enabled, optionally apply PAPO
+  # only to the leading response tokens and residual matching only to the
+  # remaining tokens. Each region is renormalized independently.
+  papo_residual_position_split_enabled: false
+  papo_residual_papo_fraction: 0.5
+
+  # PAPO-only positional ablation: apply PAPO only to the leading fraction of
+  # each valid response and renormalize it to retain the full coefficient scale.
+  papo_front_only_enabled: false
+  papo_front_fraction: 0.5
+
+  # PAPO sampled-token perception KL on top of vanilla OPD. The masked student
+  # branch is detached. With teacher gating enabled, tokens are kept only when
+  # the teacher assigns higher sampled-token log-probability to the original
+  # image, and are scaled by that original-minus-masked teacher gap. Otherwise,
+  # PAPO is applied uniformly to every selected valid response token.
+  papo_enabled: false
+  papo_teacher_gating_enabled: true
+  # teacher_positive, student_positive, or rate_matched_random.
+  # student_positive keeps exactly the tokens with detached student
+  # original-minus-masked delta > 0 and assigns them unit weight. The random
+  # control preserves the teacher gate's per-response active-token count and
+  # positive weight distribution.
+  papo_teacher_gate_mode: teacher_positive
+  # random_mask or patch_shuffle. For patch_shuffle, null derives
+  # image_processor.patch_size * image_processor.merge_size.
+  papo_negative_strategy: random_mask
+  papo_patch_shuffle_block_size: null
+  papo_mask_ratio: 0.6
+  papo_patch_size: 14
+  papo_coef: 0.02
+  papo_log_ratio_clip: 20.0
+  papo_kl_max: 10.0
+
+  # Meaning-preserving Gaussian near-neighbour consistency. The noisy branch
+  # is detached and KL[student(clean) || student(gaussian)] is minimized.
+  gaussian_near_pull_enabled: false
+  gaussian_near_pull_std: 0.2
+  gaussian_near_pull_coef: 0.02
+  gaussian_near_pull_log_ratio_clip: 20.0
+  gaussian_near_pull_kl_max: 10.0
+
+  # Independent format-only PPO objective. This remains separate from
+  # use_task_rewards and is disabled by default. With the default baseline,
+  # valid completed responses get +0.5 advantage while malformed or
+  # max-length-truncated responses get -0.5 advantage.
+  format_reward_enabled: false
+  format_reward_coef: 0.1
+  format_reward_baseline: 0.5
+  format_reward_style: boxed
+  format_reward_require_termination: true
+
+  # # Hindsight margin: shrink loss magnitude for correct trajectories
+  # margin_gamma: 0.0
+
+  # # Whether to weight loss by teacher confidence
+  # use_confidence_weight: false
+
+  # # Exponent to amplify teacher-prob -> weight for confidence weighting
+  # confidence_alpha: 2.0
+
+  # # Teacher max-prob threshold below which tokens are considered low-confidence
+  # cascade_epsilon: 0.0
+
+  # # Consecutive low-confidence steps before cascading truncation fires
+  # cascade_tolerance: 1
+
+  # margin_gamma: 5.0
+  # use_confidence_weight: true
+  # confidence_alpha: 2.0
+  # cascade_epsilon: 0.03
+  # cascade_tolerance: 4
+
+
+# teacher model config
+teacher_model:
+  _target_: verl.workers.config.DistillationTeacherModelConfig
+
+  # Whether to enable separate resource pool for teacher model(s)
+  enable_resource_pool: false
+
+  # Number of GPUs per node to use for distillation teacher model(s)
+  n_gpus_per_node: 8
+
+  # Number of nodes to use for distillation teacher model(s)
+  nnodes: 0
+
+  model_path: null
+
+  inference:
+    _target_: verl.workers.config.RolloutConfig
+    name: ${oc.select:actor_rollout_ref.rollout.name}
+    dtype: ${oc.select:actor_rollout_ref.rollout.dtype}
+    gpu_memory_utilization: 0.5
+    enforce_eager: true
+    cudagraph_capture_sizes: null
+    free_cache_engine: true
+    data_parallel_size: 1
+    expert_parallel_size: 1
+    tensor_model_parallel_size: 2
+    max_num_batched_tokens: 8192
+    max_model_len: null
+    max_num_seqs: 1024
+    load_format: auto
+    engine_kwargs: {}
+    limit_images: null
+    enable_chunked_prefill: true
+    enable_prefix_caching: true
+    disable_log_stats: true
+    skip_tokenizer_init: false
+
+    prompt_length: ${oc.select:actor_rollout_ref.rollout.prompt_length}
+    response_length: ${oc.select:actor_rollout_ref.rollout.response_length}
+    temperature: ${oc.select:actor_rollout_ref.rollout.temperature}
