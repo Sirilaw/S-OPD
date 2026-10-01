@@ -14,6 +14,8 @@
   </strong>
   <br>
   <sup>*</sup> Corresponding author
+  <br>
+  <a href="https://arxiv.org/abs/2609.39120">Paper Link</a>
 </div>
 
 > Official implementation of **S-OPD**, a multimodal on-policy distillation framework that strengthens the student's visual perception instead of modifying only the teacher-side supervision signal.
@@ -92,7 +94,7 @@ The paper is currently anonymous. Please use the temporary entry below and repla
 @article{liu2026sopd,
   title={Is Better Teacher Supervision Enough? Unlocking Student-side Learning in Multimodal On-Policy Distillation},
   author={Liu, Siyuan and Tian, Kanghui and Duan, Yue and He, Yutao and Yang, Shangdong and Zhang, Jian and Shi, Yinghuan},
-  journal={arXiv preprint arXiv:},
+  journal={arXiv preprint arXiv:2609.39120},
   year={2026},
 }
 ```
